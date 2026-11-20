@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提示词资料库</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%93%9A%3C/text%3E%3C/svg%3E">
+<style>
+/* ================= 主题变量 ================= */
+:root{
+  --fs:15px;
+  --bg:#0e1015; --panel:#151822; --side:#111420; --hover:#1d2233;
+  --text:#d6dae3; --text2:#8b93a7;
+  --border:#252a3a; --accent:#a78bfa; --accent-weak:#262043;
+  --code-bg:#0b0d14; --quote-bg:#181c29; --mark:#8a6d1f;
+  --scroll:#2b3145; --shadow:0 8px 30px rgba(0,0,0,.45);
+}
+html[data-theme=light]{
+  --bg:#f7f8fa; --panel:#ffffff; --side:#f2f3f7; --hover:#e9ebf1;
+  --text:#24292f; --text2:#57606a;
+  --border:#e2e5ec; --accent:#7c3aed; --accent-weak:#ede9fe;
+  --code-bg:#f6f8fa; --quote-bg:#f2f3f7; --mark:#ffe066;
+  --scroll:#c8cdd8; --shadow:0 8px 30px rgba(0,0,0,.12);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;height:100vh;display:flex;flex-direction:column;overflow:hidden;
+  background:var(--bg);color:var(--text);font-size:var(--fs);
+  font-family:"Segoe UI","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+}
+::selection{background:var(--accent-weak)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:6px;border:2px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+button{font-family:inherit}
+
+/* ================= 顶栏 ================= */
+#topbar{flex:none;display:flex;align-items:center;gap:8px;height:52px;padding:0 12px;
+  background:var(--panel);border-bottom:1px solid var(--border)}
+#brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:16px;white-space:nowrap;flex:none}
+#brand .logo{font-size:20px}
+#search-wrap{display:flex;align-items:center;height:36px;flex:1;max-width:520px;
+  margin:0 auto;padding:0 4px 0 12px;border:1px solid var(--border);border-radius:9px;background:var(--bg)}
+#search-wrap:focus-within{border-color:var(--accent)}
+#search-input{flex:1;min-width:0;border:none;background:transparent;color:var(--text);outline:none;font-size:13.5px}
+#search-input::placeholder{color:var(--text2)}
+#btn-search{border:none;background:transparent;cursor:pointer;font-size:15px;padding:2px 6px}
+#top-actions{display:flex;align-items:center;gap:4px;flex:none;margin-left:auto}
+.icon-btn{height:34px;min-width:34px;padding:0 9px;border:none;border-radius:8px;
+  background:transparent;color:var(--text2);cursor:pointer;font-size:14px;line-height:1;white-space:nowrap}
+.icon-btn:hover{background:var(--hover);color:var(--text)}
+
+/* ================= 布局 ================= */
+#layout{flex:1;display:flex;min-height:0;position:relative}
+#sidebar{width:300px;flex:none;display:flex;flex-direction:column;min-height:0;
+  background:var(--side);border-right:1px solid var(--border)}
+body.side-hidden #sidebar{display:none}
+#tabs{flex:none;display:flex;border-bottom:1px solid var(--border)}
+.tab{flex:1;padding:9px 0;border:none;background:none;color:var(--text2);font-size:13px;
+  cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.panel{display:none;flex:1;overflow-y:auto;padding:6px 6px 24px;min-height:0}
+.panel.active{display:block}
+
+/* ================= 文件列表 ================= */
+.group-head{padding:10px 10px 5px;font-size:12px;color:var(--text2);font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item{padding:7px 10px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:2px;
+  border-left:3px solid transparent;margin:1px 0}
+.file-item:hover{background:var(--hover)}
+.file-item.active{background:var(--accent-weak);border-left-color:var(--accent)}
+.fi-title{font-size:13.5px;line-height:1.45;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-item.active .fi-title{color:var(--accent);font-weight:600}
+.fi-name{font-size:11px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ================= 大纲 ================= */
+.toc-item{padding:6px 10px;font-size:13px;color:var(--text2);cursor:pointer;border-radius:6px;
+  border-left:3px solid transparent;line-height:1.4;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.toc-item:hover{background:var(--hover);color:var(--text)}
+.toc-item.active{color:var(--accent);border-left-color:var(--accent);background:var(--accent-weak)}
+
+/* ================= 搜索结果 ================= */
+.sr-group{padding:12px 10px 4px;font-size:13px;font-weight:700}
+.sr-path{font-size:11px;color:var(--text2);font-weight:400;margin-left:6px}
+.sr-item{margin:4px 6px;padding:8px 10px;border-radius:8px;cursor:pointer;
+  background:var(--panel);border:1px solid var(--border)}
+.sr-item:hover{border-color:var(--accent)}
+.sr-loc{font-size:11.5px;color:var(--accent);margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sr-text{font-size:12.5px;color:var(--text2);line-height:1.55;word-break:break-all;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+mark{background:var(--mark);color:inherit;padding:0 1px;border-radius:3px}
+
+/* ================= 阅读区 ================= */
+#main{flex:1;overflow-y:auto;min-width:0}
+.article-inner{max-width:880px;margin:0 auto;padding:30px 44px 90px;line-height:1.8}
+.article-inner h1{font-size:1.85em;margin:.5em 0 .6em;padding-bottom:.35em;border-bottom:1px solid var(--border);line-height:1.4}
+.article-inner h2{font-size:1.42em;margin:1.5em 0 .55em;line-height:1.4}
+.article-inner h3{font-size:1.18em;margin:1.3em 0 .5em;line-height:1.4}
+.article-inner h4{font-size:1.04em;margin:1.1em 0 .4em}
+.article-inner p{margin:.65em 0}
+.article-inner a{color:var(--accent);text-decoration:none}
+.article-inner a:hover{text-decoration:underline}
+blockquote{margin:1em 0;padding:.55em 1em;border-left:4px solid var(--accent);
+  background:var(--quote-bg);border-radius:0 8px 8px 0;color:var(--text2)}
+blockquote p{margin:.3em 0}
+hr{border:none;border-top:1px solid var(--border);margin:1.7em 0}
+ul,ol{padding-left:1.7em;margin:.6em 0}
+li{margin:.3em 0}
+.table-wrap{overflow-x:auto;margin:1em 0}
+table{border-collapse:collapse;width:100%;font-size:.94em}
+th,td{border:1px solid var(--border);padding:7px 12px;text-align:left;vertical-align:top}
+th{background:var(--code-bg)}
+img{max-width:100%;border-radius:8px}
+.ic{background:var(--code-bg);border:1px solid var(--border);border-radius:5px;padding:1px 6px;
+  font-family:Consolas,'Cascadia Code',monospace;font-size:.86em}
+h1.flash,h2.flash,h3.flash,h4.flash,h5.flash,h6.flash{animation:flash 1.4s ease}
+@keyframes flash{0%,55%{background:var(--accent-weak)}100%{background:transparent}}
+
+/* ================= 代码块 ================= */
+.code-block{margin:1.15em 0;border:1px solid var(--border);border-radius:10px;
+  background:var(--code-bg);overflow:hidden}
+.code-head{display:flex;align-items:center;justify-content:space-between;padding:7px 12px;
+  border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--code-bg);z-index:5}
+.code-lang{font-size:11.5px;color:var(--text2);font-family:Consolas,monospace}
+.copy-btn{font-size:12px;padding:3px 13px;border-radius:6px;border:1px solid var(--border);
+  background:var(--panel);color:var(--text2);cursor:pointer;transition:color .15s,border-color .15s}
+.copy-btn:hover{color:var(--accent);border-color:var(--accent)}
+.copy-btn.ok{color:#22c55e;border-color:#22c55e}
+.code-block pre{margin:0;padding:14px 16px;overflow-x:auto;line-height:1.75}
+.code-block code{font-family:Consolas,'Cascadia Code','Courier New',monospace;
+  font-size:.86em;white-space:pre;color:var(--text)}
+
+/* ================= 状态栏 / 杂项 ================= */
+#statusbar{flex:none;display:flex;justify-content:space-between;align-items:center;gap:10px;
+  height:30px;padding:0 14px;background:var(--panel);border-top:1px solid var(--border);
+  font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden}
+#status-left{overflow:hidden;text-overflow:ellipsis}
+.empty{padding:26px 14px;color:var(--text2);font-size:13px;text-align:center;line-height:1.8}
+.error-card{margin:60px auto;max-width:460px;text-align:center;padding:30px;
+  border:1px solid var(--border);border-radius:12px;background:var(--panel)}
+.error-card h3{margin:0 0 10px}
+.error-card p{color:var(--text2);font-size:14px;line-height:1.8}
+
+@media (max-width:860px){
+  #sidebar{position:absolute;left:0;top:0;bottom:0;z-index:30;box-shadow:var(--shadow)}
+  .article-inner{padding:20px 18px 70px}
+  #brand span{display:none}
+}
+</style>
+</head>
+<body>
+
+<header id="topbar">
+  <button id="btn-menu" class="icon-btn" title="显示/隐藏侧栏">☰</button>
+  <div id="brand"><span class="logo">📚</span><span>提示词资料库</span></div>
+  <div id="search-wrap">
+    <input id="search-input" type="search" placeholder="搜索标题 / 全文，回车立即搜索…" autocomplete="off">
+    <button id="btn-search" title="搜索">🔍</button>
+  </div>
+  <div id="top-actions">
+    <button id="btn-fminus" class="icon-btn" title="减小字号">A−</button>
+    <button id="btn-fplus" class="icon-btn" title="增大字号">A＋</button>
+    <button id="btn-theme" class="icon-btn" title="切换深浅主题">🌙</button>
+    <button id="btn-refresh" class="icon-btn" title="刷新列表与当前文档">⟳</button>
+  </div>
+</header>
+
+<div id="layout">
+  <aside id="sidebar">
+    <nav id="tabs">
+      <button class="tab active" data-tab="files">文档</button>
+      <button class="tab" data-tab="toc">大纲</button>
+      <button class="tab" data-tab="search">搜索</button>
+    </nav>
+    <div id="panel-files" class="panel active"><div class="empty">正在加载文档列表…</div></div>
+    <div id="panel-toc" class="panel"><div class="empty">打开文档后显示大纲</div></div>
+    <div id="panel-search" class="panel"><div class="empty">输入关键词搜索全部文档<br>(含提示词正文)</div></div>
+  </aside>
+  <main id="main">
+    <article id="article"><div class="article-inner"><div class="empty">正在加载…</div></div></article>
+  </main>
+</div>
+
+<footer id="statusbar">
+  <span id="status-left">就绪</span>
+  <span id="status-right"></span>
+</footer>
+
+<script>
+'use strict';
+/* ================================================================
+   工具函数
+================================================================ */
+function escapeHtml(s){
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function escapeAttr(s){ return escapeHtml(s); }
+function escapeReg(s){ return String(s).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function slug(t){
+  return String(t).trim().toLowerCase()
+    .replace(/[^\p{L}\p{N}\s_-]/gu,'')
+    .replace(/\s+/g,'-');
+}
+
+/* ================================================================
+   Markdown 渲染引擎(内置, 支持常用语法)
+================================================================ */
+const listItemRe = /^(\s*)([-*+]|\d+[.)])\s+(.*)$/;
+
+function isSepLine(l){
+  return /^[\s|:-]+$/.test(l) && l.includes('-') && l.includes('|');
+}
+function isBlockStart(l, next){
+  return !l.trim() ||
+    /^#{1,6}\s/.test(l) ||
+    /^\s{0,3}(```|~~~)/.test(l) ||
+    /^\s{0,3}>/.test(l) ||
+    listItemRe.test(l) ||
+    /^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(l) ||
+    /^\s{0,3}<!--/.test(l) ||
+    (l.includes('|') && next != null && isSepLine(next));
+}
+
+function renderInline(text){
+  const codes = [];
+  let s = escapeHtml(text);
+  // 行内代码先占位, 防止内部再被替换
+  s = s.replace(/`([^`]+)`/g, function(m,c){ codes.push(c); return '\u0001' + (codes.length-1) + '\u0001'; });
+  // 图片 ![alt](url)
+  s = s.replace(/!\[([^\]]*)\]\(\s*(<[^>]*>|[^)\s]+)\s*\)/g, function(m,alt,url){
+    return '<img src="' + url.replace(/[<>]/g,'') + '" alt="' + alt + '" loading="lazy">';
+  });
+  // 链接 [text](url)
+  s = s.replace(/\[([^\]]+)\]\(\s*(<[^>]*>|[^)\s]+)\s*\)/g, function(m,txt,url){
+    url = url.replace(/[<>]/g,'');
+    if (/^(javascript|vbscript|data):/i.test(url)) return txt;
+    const isMd = /\.md(\?.*)?(#.*)?$/i.test(url);
+    return '<a href="' + url + '"' + (isMd ? ' data-mdlink="1"' : ' target="_blank" rel="noopener"') + '>' + txt + '</a>';
+  });
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  s = s.replace(/(^|[^_\w])_([^_\n]+)_/g, '$1<em>$2</em>');
+  s = s.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+  s = s.replace(/\u0001(\d+)\u0001/g, function(m,n){ return '<code class="ic">' + codes[+n] + '</code>'; });
+  return s;
+}
+
+function parseList(lines, start){
+  const first = lines[start].match(listItemRe);
+  const baseIndent = first[1].length;
+  const ordered = /^\d/.test(first[2]);
+  const items = [];
+  let i = start;
+  while (i < lines.length){
+    const m = lines[i].match(listItemRe);
+    if (!m) break;
+    if (m[1].length !== baseIndent) break;
+    if (/^\d/.test(m[2]) !== ordered) break;
+
+    const itemPad = baseIndent + m[2].length + 1;
+    const content = [m[3]];
+    i++;
+    while (i < lines.length){
+      const l = lines[i];
+      if (!l.trim()){
+        const nxt = i + 1 < lines.length ? lines[i+1] : '';
+        if (nxt.trim() && (/^(\s*)/.exec(nxt))[1].length >= itemPad){ i++; continue; }
+        break;
+      }
+      const ind = (/^(\s*)/.exec(l))[1].length;
+      if (ind >= itemPad){ content.push(l); i++; continue; }
+      break;
+    }
+    // 组装单个列表项(可含子列表)
+    let html = '', seg = [];
+    for (let k = 0; k < content.length; k++){
+      const cl = content[k];
+      if (listItemRe.test(cl) && (/^(\s*)/.exec(cl))[1].length >= itemPad){
+        const sub = parseList(content, k);
+        if (seg.length) html += '<p>' + seg.map(renderInline).join('<br>') + '</p>';
+        seg = [];
+        html += sub.html;
+        k = sub.next - 1;
+      } else seg.push(cl);
+    }
+    if (seg.length) html += seg.map(renderInline).join('<br>');
+    items.push(html);
+  }
+  const tag = ordered ? 'ol' : 'ul';
+  return { html: '<'+tag+'>' + items.map(x=>'<li>'+x+'</li>').join('') + '</'+tag+'>', next: i };
+}
+
+function mdToHtml(src, opts){
+  opts = opts || {};
+  const collect = opts.collect !== false;
+  const breaks = !!opts.breaks;
+  const lines = String(src).replace(/\r\n?/g,'\n').split('\n');
+  const out = [];
+  const headers = [];
+  let i = 0;
+
+  while (i < lines.length){
+    const line = lines[i];
+
+    // 空行
+    if (!line.trim()){ i++; continue; }
+
+    // HTML 注释(可跨行, 不渲染不进大纲)
+    if (/<!--/.test(line)){
+      if (!/-->/.test(line)){ while (i < lines.length && !/-->/.test(lines[i])) i++; }
+      i++; continue;
+    }
+
+    // 围栏代码块
+    const fm = line.match(/^\s{0,3}(```+|~~~+)\s*([^`\s]*)\s*$/);
+    if (fm){
+      const mark = fm[1].slice(0,3);
+      const lang = fm[2] || '';
+      i++;
+      const buf = [];
+      while (i < lines.length && !lines[i].trim().startsWith(mark)){ buf.push(lines[i]); i++; }
+      if (i < lines.length) i++;
+      out.push('<div class="code-block"><div class="code-head"><span class="code-lang">'
+        + escapeHtml(lang || 'text')
+        + '</span><button type="button" class="copy-btn">复制</button></div><pre><code>'
+        + escapeHtml(buf.join('\n')) + '</code></pre></div>');
+      continue;
+    }
+
+    // ATX 标题
+    const hm = line.match(/^(#{1,6})\s+(.*)$/);
+    if (hm){
+      const text = hm[2].replace(/\s+#+\s*$/,'').trim();
+      const level = hm[1].length;
+      if (collect){
+        const idx = headers.length;
+        headers.push({ text, level, idx });
+        out.push('<h'+level+' id="'+escapeAttr(slug(text))+'" data-hidx="'+idx+'">'+renderInline(text)+'</h'+level+'>');
+      } else {
+        out.push('<h'+level+'>'+renderInline(text)+'</h'+level+'>');
+      }
+      i++; continue;
+    }
+
+    // 分隔线
+    if (/^\s{0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(line)){ out.push('<hr>'); i++; continue; }
+
+    // 引用块
+    if (/^\s{0,3}>/.test(line)){
+      const buf = [];
+      while (i < lines.length && /^\s{0,3}>/.test(lines[i])){ buf.push(lines[i].replace(/^\s{0,3}>\s?/,'')); i++; }
+      out.push('<blockquote>' + mdToHtml(buf.join('\n'), {collect:false, breaks:true}).html + '</blockquote>');
+      continue;
+    }
+
+    // 表格
+    if (line.includes('|') && i + 1 < lines.length && isSepLine(lines[i+1])){
+      const cells = r => r.trim().replace(/^\|/,'').replace(/\|$/,'').split('|').map(c=>c.trim());
+      const head = cells(line);
+      i += 2;
+      let body = '';
+      while (i < lines.length && lines[i].trim() && lines[i].includes('|')){
+        body += '<tr>' + cells(lines[i]).map(c=>'<td>'+renderInline(c)+'</td>').join('') + '</tr>';
+        i++;
+      }
+      out.push('<div class="table-wrap"><table><thead><tr>'
+        + head.map(c=>'<th>'+renderInline(c)+'</th>').join('')
+        + '</tr></thead><tbody>' + body + '</tbody></table></div>');
+      continue;
+    }
+
+    // 列表
+    if (listItemRe.test(line)){
+      const r = parseList(lines, i);
+      out.push(r.html); i = r.next; continue;
+    }
+
+    // 段落
+    const buf = [line]; i++;
+    while (i < lines.length && !isBlockStart(lines[i], lines[i+1])){ buf.push(lines[i]); i++; }
+    out.push('<p>' + (breaks ? buf.map(renderInline).join('<br>\n') : renderInline(buf.join('\n'))) + '</p>');
+  }
+  return { html: out.join('\n'), headers };
+}
+
+/* ================================================================
+   应用状态 / API
+================================================================ */
+const $ = id => document.getElementById(id);
+const main = $('main'), article = $('article');
+const panelFiles = $('panel-files'), panelToc = $('panel-toc'), panelSearch = $('panel-search');
+const searchInput = $('search-input'), statusLeft = $('status-left'), statusRight = $('status-right');
+const btnTheme = $('btn-theme');
+
+const state = {
+  files: [], current: null, headers: [],
+  searchResults: [], searchQ: '', curToc: -2,
+};
+
+async function apiGet(url){
+  const r = await fetch(url, { cache: 'no-store' });
+  let j = null;
+  try { j = await r.json(); }
+  catch(e){ throw new Error('服务响应异常 (HTTP ' + r.status + ')'); }
+  if (!r.ok || j.error) throw new Error(j.error || ('HTTP ' + r.status));
+  return j.data;
+}
+function setStatus(msg){ statusLeft.textContent = msg; }
+
+/* ================================================================
+   文件列表
+================================================================ */
+async function loadList(){
+  state.files = await apiGet('/api/list');
+  renderFileList();
+  statusRight.textContent = '共 ' + state.files.length + ' 篇文档 · 提示词资料库';
+}
+function renderFileList(){
+  if (!state.files.length){
+    panelFiles.innerHTML = '<div class="empty">未在文档目录中找到 .md 文件<br>把资料(含子目录)放入项目根目录后点「⟳ 刷新」</div>';
+    return;
+  }
+  const groups = new Map();
+  state.files.forEach(f => {
+    if (!groups.has(f.dir)) groups.set(f.dir, []);
+    groups.get(f.dir).push(f);
+  });
+  let html = '';
+  [...groups.keys()].sort().forEach(dir => {
+    html += '<div class="group-head">📁 ' + (dir ? escapeHtml(dir) : '根目录') + '</div>';
+    groups.get(dir).forEach(f => {
+      const active = state.current && f.path === state.current.path ? ' active' : '';
+      html += '<div class="file-item'+active+'" data-path="'+escapeAttr(f.path)+'" title="'
+        + escapeAttr(f.path)+' · 更新于 '+escapeAttr(f.mtime)+'">'
+        + '<span class="fi-title">'+escapeHtml(f.title)+'</span>'
+        + '<span class="fi-name">'+escapeHtml(f.name)+'</span></div>';
+    });
+  });
+  panelFiles.innerHTML = html;
+}
+panelFiles.addEventListener('click', e => {
+  const item = e.target.closest('.file-item');
+  if (item) openFile(item.dataset.path);
+});
+
+/* ================================================================
+   打开 / 渲染文档
+================================================================ */
+async function openFile(path, headingIdx){
+  try{
+    setStatus('正在加载 ' + path + ' …');
+    const data = await apiGet('/api/file?p=' + encodeURIComponent(path));
+    state.current = data;
+    const r = mdToHtml(data.content);
+    state.headers = r.headers;
+    state.curToc = -2;
+    article.innerHTML = '<div class="article-inner">' + r.html + '</div>';
+    rewriteImages();
+    renderToc();
+    renderFileList();
+    localStorage.setItem('pv.last', path);
+    const n = data.content.length;
+    statusLeft.textContent = '📄 ' + data.path + ' · 更新于 ' + data.mtime + ' · '
+      + (n < 1000 ? n + ' 字' : (n/1000).toFixed(1) + ' 千字');
+    if (headingIdx != null && headingIdx >= 0) scrollToHeading(headingIdx);
+    else main.scrollTo({ top: 0 });
+  } catch(err){
+    article.innerHTML = '<div class="article-inner"><div class="error-card"><h3>⚠️ 加载失败</h3><p>'
+      + escapeHtml(err.message) + '</p></div></div>';
+    setStatus('加载失败: ' + err.message);
+  }
+}
+
+function rewriteImages(){
+  const base = state.current ? state.current.path.split('/').slice(0,-1).join('/') : '';
+  article.querySelectorAll('img').forEach(img => {
+    let src = (img.getAttribute('src') || '').trim();
+    if (!src || /^(https?:|data:)/i.test(src)) return;
+    src = src.replace(/\\/g,'/').replace(/^\.\//,'');
+    let rel = base ? base + '/' + src : src;
+    const parts = [];
+    rel.split('/').forEach(seg => {
+      if (seg === '..') parts.pop();
+      else if (seg && seg !== '.') parts.push(seg);
+    });
+    img.src = '/files?p=' + encodeURIComponent(parts.join('/'));
+  });
+}
+
+/* ================================================================
+   大纲(TOC)
+================================================================ */
+function renderToc(){
+  const hs = state.headers.filter(h => h.level <= 4);
+  if (!hs.length){
+    panelToc.innerHTML = '<div class="empty">当前文档没有标题大纲</div>';
+    return;
+  }
+  panelToc.innerHTML = hs.map(h =>
+    '<div class="toc-item" data-hidx="'+h.idx+'" style="padding-left:'+((h.level-1)*15+12)+'px" title="'+escapeAttr(h.text)+'">'
+    + escapeHtml(h.text) + '</div>').join('');
+}
+panelToc.addEventListener('click', e => {
+  const item = e.target.closest('.toc-item');
+  if (item) scrollToHeading(+item.dataset.hidx);
+});
+
+function scrollToHeading(idx){
+  const el = article.querySelector('[data-hidx="'+idx+'"]');
+  if (!el) return;
+  const mr = main.getBoundingClientRect();
+  const top = el.getBoundingClientRect().top - mr.top + main.scrollTop - 70;
+  main.scrollTo({ top, behavior: 'smooth' });
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1500);
+}
+
+// 滚动时高亮大纲当前项
+let tocTimer = null;
+main.addEventListener('scroll', () => {
+  if (tocTimer) return;
+  tocTimer = setTimeout(() => {
+    tocTimer = null;
+    const mr = main.getBoundingClientRect();
+    let cur = -1;
+    article.querySelectorAll('[data-hidx]').forEach(el => {
+      if (el.getBoundingClientRect().top - mr.top <= 100) cur = +el.dataset.hidx;
+    });
+    if (cur !== state.curToc){
+      state.curToc = cur;
+      panelToc.querySelectorAll('.toc-item').forEach(el =>
+        el.classList.toggle('active', +el.dataset.hidx === cur));
+    }
+  }, 160);
+});
+
+/* ================================================================
+   搜索
+================================================================ */
+let searchTimer = null;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(doSearch, 380);
+});
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter'){ clearTimeout(searchTimer); doSearch(); }
+});
+$('btn-search').addEventListener('click', () => { clearTimeout(searchTimer); doSearch(); });
+
+async function doSearch(){
+  const q = searchInput.value.trim();
+  if (!q){
+    state.searchResults = []; state.searchQ = '';
+    panelSearch.innerHTML = '<div class="empty">输入关键词搜索全部文档<br>(含提示词正文)</div>';
+    return;
+  }
+  try{
+    setStatus('正在搜索 “' + q + '” …');
+    const data = await apiGet('/api/search?q=' + encodeURIComponent(q));
+    state.searchResults = data; state.searchQ = q;
+    renderSearchResults();
+    switchTab('search');
+    const total = data.reduce((a,b) => a + b.matches.length, 0);
+    setStatus('🔍 “' + q + '” 共 ' + total + ' 条结果' + (data.length ? '（点击结果可跳转）' : ''));
+  } catch(err){
+    setStatus('搜索失败: ' + err.message);
+  }
+}
+function renderSearchResults(){
+  const data = state.searchResults;
+  if (!data.length){
+    panelSearch.innerHTML = '<div class="empty">没有找到与 “'+escapeHtml(state.searchQ)+'” 相关的内容</div>';
+    return;
+  }
+  let html = '';
+  data.forEach(f => {
+    html += '<div class="sr-group">'+escapeHtml(f.title)+'<span class="sr-path">'+escapeHtml(f.path)+'</span></div>';
+    f.matches.forEach(m => {
+      const re = new RegExp('(' + escapeReg(escapeHtml(state.searchQ)) + ')', 'gi');
+      const text = escapeHtml(m.text).replace(re, '<mark>$1</mark>');
+      html += '<div class="sr-item" data-path="'+escapeAttr(f.path)+'" data-hi="'+m.hi+'">'
+        + '<div class="sr-loc">▸ ' + (m.h ? escapeHtml(m.h) : '文档开头') + '</div>'
+        + '<div class="sr-text">'+text+'</div></div>';
+    });
+  });
+  panelSearch.innerHTML = html;
+}
+panelSearch.addEventListener('click', e => {
+  const item = e.target.closest('.sr-item');
+  if (item) openFile(item.dataset.path, +item.dataset.hi);
+});
+
+/* ================================================================
+   正文交互: 复制按钮 / 链接
+================================================================ */
+article.addEventListener('click', e => {
+  const btn = e.target.closest('.copy-btn');
+  if (btn){
+    const code = btn.closest('.code-block').querySelector('code');
+    copyText(code.textContent).then(() => {
+      btn.textContent = '✓ 已复制';
+      btn.classList.add('ok');
+      setTimeout(() => { btn.textContent = '复制'; btn.classList.remove('ok'); }, 1500);
+    });
+    return;
+  }
+  const a = e.target.closest('a');
+  if (!a) return;
+  const href = a.getAttribute('href') || '';
+  if (a.dataset.mdlink){                       // md 文档间跳转
+    e.preventDefault();
+    const base = state.current ? state.current.path.split('/').slice(0,-1).join('/') : '';
+    const target = href.replace(/[#?].*$/, '');
+    const rel = base ? base + '/' + target : target;
+    const parts = [];
+    rel.split('/').forEach(s => { if (s === '..') parts.pop(); else if (s && s !== '.') parts.push(s); });
+    openFile(parts.join('/'));
+    return;
+  }
+  if (href.startsWith('#')){                    // 文内锚点
+    e.preventDefault();
+    const el = document.getElementById(decodeURIComponent(href.slice(1)));
+    if (el && el.dataset.hidx != null) scrollToHeading(+el.dataset.hidx);
+  }
+});
+
+function copyText(t){
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(t);
+  return new Promise(res => {
+    const ta = document.createElement('textarea');
+    ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); res();
+  });
+}
+
+/* ================================================================
+   侧栏 Tab / 主题 / 字号 / 其他按钮
+================================================================ */
+function switchTab(name){
+  document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  localStorage.setItem('pv.tab', name);
+}
+document.querySelectorAll('#tabs .tab').forEach(b =>
+  b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  btnTheme.textContent = t === 'dark' ? '☀️' : '🌙';
+  localStorage.setItem('pv.theme', t);
+}
+btnTheme.addEventListener('click', () =>
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
+
+function applyFont(px){
+  px = Math.min(20, Math.max(13, px));
+  document.documentElement.style.setProperty('--fs', px + 'px');
+  localStorage.setItem('pv.fs', px);
+}
+$('btn-fplus').addEventListener('click', () => applyFont(+(localStorage.getItem('pv.fs')||15) + 1));
+$('btn-fminus').addEventListener('click', () => applyFont(+(localStorage.getItem('pv.fs')||15) - 1));
+
+$('btn-refresh').addEventListener('click', async () => {
+  try{
+    await loadList();
+    if (state.current) await openFile(state.current.path);
+    else if (state.files.length) await openFile(state.files[0].path);
+  }catch(err){ setStatus('刷新失败: ' + err.message); }
+});
+
+$('btn-menu').addEventListener('click', () => document.body.classList.toggle('side-hidden'));
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k'){
+    e.preventDefault(); searchInput.focus(); searchInput.select();
+  }
+});
+
+/* ================================================================
+   启动
+================================================================ */
+(async function init(){
+  applyTheme(localStorage.getItem('pv.theme') ||
+    (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'));
+  applyFont(+(localStorage.getItem('pv.fs') || 15));
+  const savedTab = localStorage.getItem('pv.tab');
+  if (savedTab && savedTab !== 'search') switchTab(savedTab);
+  if (innerWidth < 860) document.body.classList.add('side-hidden');
+  try{
+    await loadList();
+    const last = localStorage.getItem('pv.last');
+    const target = state.files.find(f => f.path === last) || state.files[0];
+    if (target) await openFile(target.path);
+    else article.innerHTML = '<div class="article-inner"><div class="error-card"><h3>📚 暂无文档</h3>'
+      + '<p>把提示词资料(.md)放入项目根目录或其子目录, 然后点右上角「⟳ 刷新」。</p></div></div>';
+  }catch(err){
+    article.innerHTML = '<div class="article-inner"><div class="error-card"><h3>⚠️ 无法连接本地服务</h3>'
+      + '<p>请先双击项目根目录的 <b>启动查看器.bat</b>, 再刷新本页面。<br>'
+      + '<span style="font-size:12px;color:var(--text2)">' + escapeHtml(err.message) + '</span></p></div></div>';
+    setStatus('服务未连接');
+  }
+})();
+</script>
+</body>
+</html>
